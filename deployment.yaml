@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: a2s-metrics
+  name: a2s-monitor
   labels:
-    app: a2s-metrics
+    app: a2s-monitor
 spec:
   selector:
     matchLabels:
-      app: a2s-metrics
+      app: a2s-monitor
   template:
     metadata:
       labels:
-        app: a2s-metrics
+        app: a2s-monitor
     spec:
       containers:
-        - name: a2s-metrics
-          image: quay.io/awildbeard/a2s-metrics:latest
+        - name: a2s-monitor
+          image: quay.io/awildbeard/a2s-monitor:latest
           args:
             - -l
             - 0.0.0.0:9321
