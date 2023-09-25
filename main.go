@@ -275,6 +275,7 @@ func main() {
 
 					timeToReport := player.Duration
 					if t, ok := playersLastPlayTimeReported[playerTrackingString]; ok {
+						playersLastPlayTimeReported[playerTrackingString] = timeToReport
 						timeToReport = timeToReport - t
 					} else {
 						playersLastPlayTimeReported[playerTrackingString] = timeToReport
