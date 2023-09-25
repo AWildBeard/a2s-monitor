@@ -201,6 +201,7 @@ func main() {
 	go func(infoUpdates chan *infoUpdate, playerUpdates chan *playerUpdate) {
 		commonLabelMapping := map[string]prometheus.Labels{}
 
+		playersLastPlayTimeReported := map[string]float32{}
 		for {
 			select {
 			case infoUpdate := <-infoUpdates:
@@ -235,6 +236,27 @@ func main() {
 				botCount.With(infoLabels).Set(float64(infoUpdate.Bots))
 
 			case playerUpdate := <-playerUpdates:
+				// Clear out our player playtime difference cache of players that don't exist anymore
+				if len(playerUpdate.Players) > 0 {
+					newLastPlaytimeCache := map[string]float32{}
+
+					if len(playersLastPlayTimeReported) > 0 {
+						for _, player := range playerUpdate.Players {
+							playerTrackingString := playerUpdate.commonLabels["host_port"] + player.Name + playerUpdate.commonLabels["map"] + playerUpdate.commonLabels["version"]
+							if t, ok := playersLastPlayTimeReported[playerTrackingString]; ok {
+								newLastPlaytimeCache[playerTrackingString] = t
+							}
+						}
+
+						playersLastPlayTimeReported = newLastPlaytimeCache
+					}
+				} else {
+					// clear the cache in the event no players are reported on the server.
+					if len(playersLastPlayTimeReported) > 0 {
+						playersLastPlayTimeReported = map[string]float32{}
+					}
+				}
+
 				// So we don't get forward observability into metrics afaict... So we must clear out the host player
 				// metric prior to writing so we don't get phantom players being recorded when they are no longer
 				// present according to our information.
@@ -249,7 +271,16 @@ func main() {
 				playTime.DeletePartialMatch(hostPortLabelMatch)
 				// Now populate the metric again...
 				for _, player := range playerUpdate.Players {
-					playTime.With(getPlayerLabels(player, playerUpdate.commonLabels)).Set(float64(player.Duration))
+					playerTrackingString := playerUpdate.commonLabels["host_port"] + player.Name + playerUpdate.commonLabels["map"] + playerUpdate.commonLabels["version"]
+
+					timeToReport := player.Duration
+					if t, ok := playersLastPlayTimeReported[playerTrackingString]; ok {
+						timeToReport = timeToReport - t
+					} else {
+						playersLastPlayTimeReported[playerTrackingString] = timeToReport
+					}
+
+					playTime.With(getPlayerLabels(player, playerUpdate.commonLabels)).Set(float64(timeToReport))
 				}
 			}
 		}
