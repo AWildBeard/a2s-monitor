@@ -58,7 +58,7 @@ func getCommonLabels(host string, i *a2s.ServerInfo) prometheus.Labels {
 
 func getInfoLabels(i *a2s.ServerInfo, commonLabels prometheus.Labels) prometheus.Labels {
 	labels := map[string]string{
-		"server_name": i.Map,
+		"server_name": i.Name,
 	}
 
 	maps.Copy(labels, commonLabels)
@@ -100,17 +100,19 @@ func init() {
 }
 
 type infoUpdate struct {
-	host   string
-	online bool
+	host         string
+	online       bool
+	queryLatency time.Duration
 	*a2s.ServerInfo
 	commonLabels prometheus.Labels
 }
 
-func newInfoUpdate(host string, si *a2s.ServerInfo) *infoUpdate {
+func newInfoUpdate(host string, si *a2s.ServerInfo, latency time.Duration) *infoUpdate {
 	commonLabels := getCommonLabels(host, si)
 	return &infoUpdate{
 		host:         host,
 		online:       true,
+		queryLatency: latency,
 		ServerInfo:   si,
 		commonLabels: commonLabels,
 	}
@@ -163,6 +165,18 @@ func main() {
 		Help:      "current number of bots in the server",
 	}, infoLabels)
 
+	applicationLatency := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "a2s_monitor",
+		Name:      "observed_app_latency",
+		Help:      "the latency observed by sending A2S info requests (as part of spec for PING replacement)",
+	}, []string{infoLabelKey})
+
+	online := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "a2s_monitor",
+		Name:      "online",
+		Help:      "0 or 1 if server is online. 0 == offline, 1 == online",
+	}, []string{infoLabelKey})
+
 	playerScore := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "a2s_monitor",
 		Name:      "player_score",
@@ -178,6 +192,8 @@ func main() {
 	prometheus.MustRegister(playerCount)
 	prometheus.MustRegister(maxPlayerCount)
 	prometheus.MustRegister(botCount)
+	prometheus.MustRegister(applicationLatency)
+	prometheus.MustRegister(online)
 	prometheus.MustRegister(playerScore)
 	prometheus.MustRegister(playTime)
 	clearMetricsWithLabels := func(labelMatch prometheus.Labels) {
@@ -209,7 +225,12 @@ func main() {
 				if !infoUpdate.online {
 					hostPortLabelMatch := prometheus.Labels{infoLabelKey: infoUpdate.host}
 					clearMetricsWithLabels(hostPortLabelMatch)
+					applicationLatency.WithLabelValues(infoUpdate.host).Set(0)
+					online.WithLabelValues(infoUpdate.host).Set(0)
 					continue
+				} else {
+					online.WithLabelValues(infoUpdate.host).Set(1)
+					applicationLatency.WithLabelValues(infoUpdate.host).Set(float64(infoUpdate.queryLatency.Milliseconds()))
 				}
 
 				if labels, ok := commonLabelMapping[infoUpdate.host]; ok {
@@ -365,7 +386,9 @@ func doInfoUpdate(providedHostPort, resolvedHostPort string, infoUpdateChan chan
 		}
 	}()
 
+	start := time.Now()
 	info, err := client.QueryInfo()
+	latency := time.Now().Sub(start)
 	if err != nil {
 		if debug {
 			// servers being down are common. Don't say it like it's an error.
@@ -376,7 +399,7 @@ func doInfoUpdate(providedHostPort, resolvedHostPort string, infoUpdateChan chan
 		return nil
 	}
 
-	update := newInfoUpdate(providedHostPort, info)
+	update := newInfoUpdate(providedHostPort, info, latency)
 	infoUpdateChan <- update
 	return update.commonLabels
 }
