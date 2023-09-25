@@ -375,7 +375,7 @@ func doInfoUpdate(providedHostPort, resolvedHostPort string, infoUpdateChan chan
 	client, err := a2s.NewClient(resolvedHostPort, a2s.SetMaxPacketSize(64000), a2s.TimeoutOption(timeout))
 	if err != nil {
 		fmt.Printf("failed to create client to host (is the host down?) %v: %v\n", resolvedHostPort, err)
-		infoUpdateChan <- &infoUpdate{online: false}
+		infoUpdateChan <- &infoUpdate{online: false, host: providedHostPort}
 		return nil
 	}
 
@@ -395,7 +395,7 @@ func doInfoUpdate(providedHostPort, resolvedHostPort string, infoUpdateChan chan
 			// Any of these other errors are likely more noteworthy.
 			fmt.Printf("failed to get info from host %v: %v\n", resolvedHostPort, err)
 		}
-		infoUpdateChan <- &infoUpdate{online: false}
+		infoUpdateChan <- &infoUpdate{online: false, host: providedHostPort}
 		return nil
 	}
 
