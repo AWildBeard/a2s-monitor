@@ -38,10 +38,10 @@ var (
 	playerLabelKey = "player_name"
 
 	// commonLabels gets appended to infoLabels and playerLabels in init
-	commonLabels = []string{infoLabelKey, "map", "version", "steam_appid"}
+	commonLabels = []string{infoLabelKey, "server_name", "map", "version", "steam_appid"}
 
 	// infoLabels are labels attached to server specific metrics
-	infoLabels = []string{"server_name"}
+	infoLabels []string
 
 	// playerLabels are labels attached to player specific metrics
 	playerLabels = []string{playerLabelKey}
@@ -50,6 +50,7 @@ var (
 func getCommonLabels(host string, i *a2s.ServerInfo) prometheus.Labels {
 	return map[string]string{
 		infoLabelKey:  host,
+		"server_name": i.Name,
 		"map":         i.Map,
 		"version":     i.Version,
 		"steam_appid": strconv.Itoa(int(i.ID)),
@@ -57,13 +58,13 @@ func getCommonLabels(host string, i *a2s.ServerInfo) prometheus.Labels {
 }
 
 func getInfoLabels(i *a2s.ServerInfo, commonLabels prometheus.Labels) prometheus.Labels {
-	labels := map[string]string{
-		"server_name": i.Name,
-	}
-
-	maps.Copy(labels, commonLabels)
-
-	return labels
+	return commonLabels
+	//labels := map[string]string{
+	//}
+	//
+	//maps.Copy(labels, commonLabels)
+	//
+	//return labels
 }
 
 func getPlayerLabels(p *a2s.Player, commonLabels prometheus.Labels) prometheus.Labels {
