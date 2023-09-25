@@ -1,0 +1,13 @@
+*
+
+!**/*.go
+!**/*.md
+!*/
+!.gitignore
+!**/Makefile
+!go.mod
+!go.sum
+!Dockerfile
+!*.yaml
+
+.idea/.gitignore

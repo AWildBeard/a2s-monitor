@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a2s-metrics
+  labels:
+    app: a2s-metrics
+spec:
+  selector:
+    matchLabels:
+      app: a2s-metrics
+  template:
+    metadata:
+      labels:
+        app: a2s-metrics
+    spec:
+      containers:
+        - name: a2s-metrics
+          image: quay.io/awildbeard/a2s-metrics:latest
+          args:
+            - -l
+            - 0.0.0.0:9321
